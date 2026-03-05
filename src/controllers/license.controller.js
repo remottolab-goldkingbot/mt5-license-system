@@ -9,7 +9,7 @@ const generateLicenseKey = () => {
 };
 
 // ==========================
-// CREATE LICENSE (AUTO CREATE USER)
+// CREATE LICENSE
 // ==========================
 const createLicense = async (req, res) => {
 
@@ -53,10 +53,10 @@ const createLicense = async (req, res) => {
         if (user.rows.length === 0) {
 
             const newUser = await pool.query(
-                `INSERT INTO users (name, email, phone)
+                `INSERT INTO users (name,email,phone)
                  VALUES ($1,$2,$3)
                  RETURNING *`,
-                [name, email, phone]
+                [name,email,phone]
             );
 
             userId = newUser.rows[0].id;
@@ -74,10 +74,19 @@ const createLicense = async (req, res) => {
         const licenseKey = generateLicenseKey();
 
         const newLicense = await pool.query(
-            `INSERT INTO licenses (user_id, license_key, expires_at)
-             VALUES ($1,$2,$3)
-             RETURNING *`,
-            [userId, licenseKey, expiresAt]
+            `INSERT INTO licenses
+            (user_id,license_key,name,email,phone,plan,status,expires_at,created_at)
+            VALUES ($1,$2,$3,$4,$5,$6,'active',$7,NOW())
+            RETURNING *`,
+            [
+                userId,
+                licenseKey,
+                name,
+                email,
+                phone,
+                plan,
+                expiresAt
+            ]
         );
 
         res.status(201).json({
@@ -91,6 +100,7 @@ const createLicense = async (req, res) => {
         res.status(500).json({ message: "Server error" });
 
     }
+
 };
 
 
@@ -143,7 +153,7 @@ const updateLicenseStatus = async (req, res) => {
 
 
 // ==========================
-// VALIDATE LICENSE + UPDATE LAST_SEEN
+// VALIDATE LICENSE (FOR MT5 EA)
 // ==========================
 const validateLicense = async (req, res) => {
 
@@ -238,14 +248,14 @@ const validateLicense = async (req, res) => {
 
 
 // ==========================
-// LIST ALL LICENSES (ADMIN)
+// GET ALL LICENSES
 // ==========================
 const getAllLicenses = async (req, res) => {
 
     try {
 
         const result = await pool.query(
-            `SELECT 
+            `SELECT
                 l.id,
                 l.license_key,
                 l.status,
@@ -283,7 +293,7 @@ const getLicensesByUser = async (req, res) => {
     try {
 
         const result = await pool.query(
-            `SELECT 
+            `SELECT
                 id,
                 license_key,
                 status,
