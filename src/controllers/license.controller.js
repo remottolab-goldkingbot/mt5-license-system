@@ -5,8 +5,20 @@ const crypto = require('crypto');
 // GENERATE LICENSE KEY
 // ==========================
 const generateLicenseKey = () => {
-    return crypto.randomBytes(16).toString('hex').toUpperCase();
+
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+    const segment = () => {
+        let result = '';
+        for (let i = 0; i < 4; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    };
+
+    return `MT5-${segment()}-${segment()}-${segment()}`;
 };
+
 
 // ==========================
 // CREATE LICENSE
