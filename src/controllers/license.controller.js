@@ -35,10 +35,6 @@ const createLicense = async (req, res) => {
             });
         }
 
-        // ==========================
-        // CALCULATE EXPIRATION
-        // ==========================
-
         let expiresAt = null;
 
         if (plan === "monthly") {
@@ -50,10 +46,6 @@ const createLicense = async (req, res) => {
             expiresAt = new Date();
             expiresAt.setFullYear(expiresAt.getFullYear() + 1);
         }
-
-        // ==========================
-        // CHECK USER
-        // ==========================
 
         let user = await pool.query(
             "SELECT * FROM users WHERE email = $1",
@@ -78,10 +70,6 @@ const createLicense = async (req, res) => {
             userId = user.rows[0].id;
 
         }
-
-        // ==========================
-        // CREATE LICENSE
-        // ==========================
 
         const licenseKey = generateLicenseKey();
 
@@ -165,11 +153,18 @@ const updateLicenseStatus = async (req, res) => {
 
 
 // ==========================
-// VALIDATE LICENSE (FOR MT5 EA)
+// VALIDATE LICENSE (MT5)
 // ==========================
 const validateLicense = async (req, res) => {
 
-    const { license_key, account_number } = req.body;
+    const {
+        license_key,
+        account_number,
+        profit,
+        balance,
+        equity,
+        drawdown
+    } = req.body;
 
     if (!license_key || !account_number) {
 
@@ -197,10 +192,6 @@ const validateLicense = async (req, res) => {
             return res.json({ valid:false });
         }
 
-        // ==========================
-        // LICENSE EXPIRATION CHECK
-        // ==========================
-
         if (license.expires_at && new Date() > new Date(license.expires_at)) {
 
             return res.json({
@@ -210,41 +201,53 @@ const validateLicense = async (req, res) => {
 
         }
 
-        // ==========================
         // FIRST ACTIVATION
-        // ==========================
-
         if (!license.account_number) {
 
             await pool.query(
                 `UPDATE licenses
                  SET account_number=$1,
-                 last_seen=NOW()
-                 WHERE id=$2`,
-                [account_number, license.id]
+                     last_seen=NOW(),
+                     profit=$2,
+                     balance=$3,
+                     equity=$4,
+                     drawdown=$5
+                 WHERE id=$6`,
+                [
+                    account_number,
+                    profit,
+                    balance,
+                    equity,
+                    drawdown,
+                    license.id
+                ]
             );
 
             return res.json({ valid:true });
 
         }
 
-        // ==========================
         // ACCOUNT VALIDATION
-        // ==========================
-
         if (license.account_number != account_number) {
             return res.json({ valid:false });
         }
 
-        // ==========================
-        // UPDATE HEARTBEAT
-        // ==========================
-
+        // HEARTBEAT UPDATE
         await pool.query(
             `UPDATE licenses
-             SET last_seen = NOW()
-             WHERE id = $1`,
-            [license.id]
+             SET last_seen = NOW(),
+                 profit = $1,
+                 balance = $2,
+                 equity = $3,
+                 drawdown = $4
+             WHERE id = $5`,
+            [
+                profit,
+                balance,
+                equity,
+                drawdown,
+                license.id
+            ]
         );
 
         return res.json({ valid:true });
@@ -275,6 +278,10 @@ const getAllLicenses = async (req, res) => {
                 l.created_at,
                 l.last_seen,
                 l.expires_at,
+                l.profit,
+                l.balance,
+                l.equity,
+                l.drawdown,
                 u.name,
                 u.email,
                 u.phone
@@ -312,7 +319,11 @@ const getLicensesByUser = async (req, res) => {
                 account_number,
                 created_at,
                 last_seen,
-                expires_at
+                expires_at,
+                profit,
+                balance,
+                equity,
+                drawdown
              FROM licenses
              WHERE user_id = $1
              ORDER BY created_at DESC`,
