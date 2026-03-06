@@ -6,17 +6,17 @@ const crypto = require('crypto');
 // ==========================
 const generateLicenseKey = () => {
 
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-    const segment = () => {
-        let result = '';
-        for (let i = 0; i < 4; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return result;
-    };
+const segment = () => {
+let result = '';
+for (let i = 0; i < 4; i++) {
+result += chars.charAt(Math.floor(Math.random() * chars.length));
+}
+return result;
+};
 
-    return `MT5-${segment()}-${segment()}-${segment()}`;
+return `MT5-${segment()}-${segment()}-${segment()}`;
 };
 
 
@@ -25,81 +25,81 @@ const generateLicenseKey = () => {
 // ==========================
 const createLicense = async (req, res) => {
 
-    const { name, email, phone, plan } = req.body;
+const { name, email, phone, plan } = req.body;
 
-    try {
+try {
 
-        if (!name || !email) {
-            return res.status(400).json({
-                message: "Name and email are required"
-            });
-        }
+if (!name || !email) {
+return res.status(400).json({
+message: "Name and email are required"
+});
+}
 
-        let expiresAt = null;
+let expiresAt = null;
 
-        if (plan === "monthly") {
-            expiresAt = new Date();
-            expiresAt.setMonth(expiresAt.getMonth() + 1);
-        }
+if (plan === "monthly") {
+expiresAt = new Date();
+expiresAt.setMonth(expiresAt.getMonth() + 1);
+}
 
-        if (plan === "yearly") {
-            expiresAt = new Date();
-            expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-        }
+if (plan === "yearly") {
+expiresAt = new Date();
+expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+}
 
-        let user = await pool.query(
-            "SELECT * FROM users WHERE email = $1",
-            [email]
-        );
+let user = await pool.query(
+"SELECT * FROM users WHERE email = $1",
+[email]
+);
 
-        let userId;
+let userId;
 
-        if (user.rows.length === 0) {
+if (user.rows.length === 0) {
 
-            const newUser = await pool.query(
-                `INSERT INTO users (name,email,phone)
-                 VALUES ($1,$2,$3)
-                 RETURNING *`,
-                [name,email,phone]
-            );
+const newUser = await pool.query(
+`INSERT INTO users (name,email,phone)
+VALUES ($1,$2,$3)
+RETURNING *`,
+[name,email,phone]
+);
 
-            userId = newUser.rows[0].id;
+userId = newUser.rows[0].id;
 
-        } else {
+} else {
 
-            userId = user.rows[0].id;
+userId = user.rows[0].id;
 
-        }
+}
 
-        const licenseKey = generateLicenseKey();
+const licenseKey = generateLicenseKey();
 
-        const newLicense = await pool.query(
-            `INSERT INTO licenses
-            (user_id,license_key,name,email,phone,plan,status,expires_at,created_at)
-            VALUES ($1,$2,$3,$4,$5,$6,'active',$7,NOW())
-            RETURNING *`,
-            [
-                userId,
-                licenseKey,
-                name,
-                email,
-                phone,
-                plan,
-                expiresAt
-            ]
-        );
+const newLicense = await pool.query(
+`INSERT INTO licenses
+(user_id,license_key,name,email,phone,plan,status,expires_at,created_at)
+VALUES ($1,$2,$3,$4,$5,$6,'active',$7,NOW())
+RETURNING *`,
+[
+userId,
+licenseKey,
+name,
+email,
+phone,
+plan,
+expiresAt
+]
+);
 
-        res.status(201).json({
-            message: "License created successfully",
-            license: newLicense.rows[0]
-        });
+res.status(201).json({
+message: "License created successfully",
+license: newLicense.rows[0]
+});
 
-    } catch (error) {
+} catch (error) {
 
-        console.error("CREATE LICENSE ERROR:", error);
-        res.status(500).json({ message: "Server error" });
+console.error("CREATE LICENSE ERROR:", error);
+res.status(500).json({ message: "Server error" });
 
-    }
+}
 
 };
 
@@ -109,46 +109,46 @@ const createLicense = async (req, res) => {
 // ==========================
 const updateLicenseStatus = async (req, res) => {
 
-    const { id } = req.params;
-    const { status } = req.body;
+const { id } = req.params;
+const { status } = req.body;
 
-    try {
+try {
 
-        if (!['active','inactive'].includes(status)) {
+if (!['active','inactive'].includes(status)) {
 
-            return res.status(400).json({
-                message: "Invalid status"
-            });
+return res.status(400).json({
+message: "Invalid status"
+});
 
-        }
+}
 
-        const updatedLicense = await pool.query(
-            `UPDATE licenses
-             SET status = $1
-             WHERE id = $2
-             RETURNING *`,
-            [status, id]
-        );
+const updatedLicense = await pool.query(
+`UPDATE licenses
+SET status = $1
+WHERE id = $2
+RETURNING *`,
+[status, id]
+);
 
-        if (updatedLicense.rows.length === 0) {
+if (updatedLicense.rows.length === 0) {
 
-            return res.status(404).json({
-                message: "License not found"
-            });
+return res.status(404).json({
+message: "License not found"
+});
 
-        }
+}
 
-        res.json({
-            message: "License updated successfully",
-            license: updatedLicense.rows[0]
-        });
+res.json({
+message: "License updated successfully",
+license: updatedLicense.rows[0]
+});
 
-    } catch (error) {
+} catch (error) {
 
-        console.error("UPDATE LICENSE ERROR:", error);
-        res.status(500).json({ message: "Server error" });
+console.error("UPDATE LICENSE ERROR:", error);
+res.status(500).json({ message: "Server error" });
 
-    }
+}
 };
 
 
@@ -157,107 +157,113 @@ const updateLicenseStatus = async (req, res) => {
 // ==========================
 const validateLicense = async (req, res) => {
 
-    const {
-        license_key,
-        account_number,
-        profit,
-        balance,
-        equity,
-        drawdown
-    } = req.body;
+const {
+license_key,
+account_number,
+profit,
+balance,
+equity,
+drawdown
+} = req.body;
 
-    if (!license_key || !account_number) {
+if (!license_key || !account_number) {
 
-        return res.status(400).json({
-            valid:false,
-            message:"License key and account number required"
-        });
+return res.status(400).json({
+valid:false,
+message:"License key and account number required"
+});
 
-    }
+}
 
-    try {
+try {
 
-        const result = await pool.query(
-            "SELECT * FROM licenses WHERE license_key = $1",
-            [license_key]
-        );
+const result = await pool.query(
+"SELECT * FROM licenses WHERE license_key = $1",
+[license_key]
+);
 
-        if (result.rows.length === 0) {
-            return res.json({ valid:false });
-        }
+if (result.rows.length === 0) {
+return res.json({ valid:false });
+}
 
-        const license = result.rows[0];
+const license = result.rows[0];
 
-        if (license.status !== 'active') {
-            return res.json({ valid:false });
-        }
+if (license.status !== 'active') {
+return res.json({ valid:false });
+}
 
-        if (license.expires_at && new Date() > new Date(license.expires_at)) {
+if (license.expires_at && new Date() > new Date(license.expires_at)) {
 
-            return res.json({
-                valid:false,
-                message:"License expired"
-            });
+return res.json({
+valid:false,
+message:"License expired"
+});
 
-        }
+}
 
-        // FIRST ACTIVATION
-        if (!license.account_number) {
+// ==========================
+// FIRST ACTIVATION
+// ==========================
+if (!license.account_number) {
 
-            await pool.query(
-                `UPDATE licenses
-                 SET account_number=$1,
-                     last_seen=NOW(),
-                     profit=$2,
-                     balance=$3,
-                     equity=$4,
-                     drawdown=$5
-                 WHERE id=$6`,
-                [
-                    account_number,
-                    profit,
-                    balance,
-                    equity,
-                    drawdown,
-                    license.id
-                ]
-            );
+await pool.query(
+`UPDATE licenses
+SET account_number=$1,
+last_seen=NOW(),
+profit=COALESCE($2,profit),
+balance=COALESCE($3,balance),
+equity=COALESCE($4,equity),
+drawdown=COALESCE($5,drawdown)
+WHERE id=$6`,
+[
+account_number,
+profit,
+balance,
+equity,
+drawdown,
+license.id
+]
+);
 
-            return res.json({ valid:true });
+return res.json({ valid:true });
 
-        }
+}
 
-        // ACCOUNT VALIDATION
-        if (license.account_number != account_number) {
-            return res.json({ valid:false });
-        }
+// ==========================
+// ACCOUNT VALIDATION
+// ==========================
+if (license.account_number != account_number) {
+return res.json({ valid:false });
+}
 
-        // HEARTBEAT UPDATE
-        await pool.query(
-            `UPDATE licenses
-             SET last_seen = NOW(),
-                 profit = $1,
-                 balance = $2,
-                 equity = $3,
-                 drawdown = $4
-             WHERE id = $5`,
-            [
-                profit,
-                balance,
-                equity,
-                drawdown,
-                license.id
-            ]
-        );
+// ==========================
+// HEARTBEAT + STATS UPDATE
+// ==========================
+await pool.query(
+`UPDATE licenses
+SET last_seen = NOW(),
+profit = COALESCE($1,profit),
+balance = COALESCE($2,balance),
+equity = COALESCE($3,equity),
+drawdown = COALESCE($4,drawdown)
+WHERE id = $5`,
+[
+profit,
+balance,
+equity,
+drawdown,
+license.id
+]
+);
 
-        return res.json({ valid:true });
+return res.json({ valid:true });
 
-    } catch (error) {
+} catch (error) {
 
-        console.error("VALIDATE LICENSE ERROR:", error);
-        return res.status(500).json({ valid:false });
+console.error("VALIDATE LICENSE ERROR:", error);
+return res.status(500).json({ valid:false });
 
-    }
+}
 
 };
 
@@ -267,37 +273,37 @@ const validateLicense = async (req, res) => {
 // ==========================
 const getAllLicenses = async (req, res) => {
 
-    try {
+try {
 
-        const result = await pool.query(
-            `SELECT
-                l.id,
-                l.license_key,
-                l.status,
-                l.account_number,
-                l.created_at,
-                l.last_seen,
-                l.expires_at,
-                l.profit,
-                l.balance,
-                l.equity,
-                l.drawdown,
-                u.name,
-                u.email,
-                u.phone
-             FROM licenses l
-             JOIN users u ON l.user_id = u.id
-             ORDER BY l.created_at DESC`
-        );
+const result = await pool.query(
+`SELECT
+l.id,
+l.license_key,
+l.status,
+l.account_number,
+l.created_at,
+l.last_seen,
+l.expires_at,
+l.profit,
+l.balance,
+l.equity,
+l.drawdown,
+u.name,
+u.email,
+u.phone
+FROM licenses l
+JOIN users u ON l.user_id = u.id
+ORDER BY l.created_at DESC`
+);
 
-        res.json(result.rows);
+res.json(result.rows);
 
-    } catch (error) {
+} catch (error) {
 
-        console.error("GET ALL LICENSES ERROR:", error);
-        res.status(500).json({ message:"Server error" });
+console.error("GET ALL LICENSES ERROR:", error);
+res.status(500).json({ message:"Server error" });
 
-    }
+}
 
 };
 
@@ -307,37 +313,37 @@ const getAllLicenses = async (req, res) => {
 // ==========================
 const getLicensesByUser = async (req, res) => {
 
-    const { user_id } = req.params;
+const { user_id } = req.params;
 
-    try {
+try {
 
-        const result = await pool.query(
-            `SELECT
-                id,
-                license_key,
-                status,
-                account_number,
-                created_at,
-                last_seen,
-                expires_at,
-                profit,
-                balance,
-                equity,
-                drawdown
-             FROM licenses
-             WHERE user_id = $1
-             ORDER BY created_at DESC`,
-            [user_id]
-        );
+const result = await pool.query(
+`SELECT
+id,
+license_key,
+status,
+account_number,
+created_at,
+last_seen,
+expires_at,
+profit,
+balance,
+equity,
+drawdown
+FROM licenses
+WHERE user_id = $1
+ORDER BY created_at DESC`,
+[user_id]
+);
 
-        res.json(result.rows);
+res.json(result.rows);
 
-    } catch (error) {
+} catch (error) {
 
-        console.error("GET LICENSES BY USER ERROR:", error);
-        res.status(500).json({ message:"Server error" });
+console.error("GET LICENSES BY USER ERROR:", error);
+res.status(500).json({ message:"Server error" });
 
-    }
+}
 
 };
 
@@ -347,28 +353,28 @@ const getLicensesByUser = async (req, res) => {
 // ==========================
 const resetLicenseAccount = async (req, res) => {
 
-    const { id } = req.params;
+const { id } = req.params;
 
-    try {
+try {
 
-        await pool.query(
-            `UPDATE licenses
-             SET account_number = NULL,
-                 last_seen = NULL
-             WHERE id = $1`,
-            [id]
-        );
+await pool.query(
+`UPDATE licenses
+SET account_number = NULL,
+last_seen = NULL
+WHERE id = $1`,
+[id]
+);
 
-        res.json({
-            message: "License account reset successfully"
-        });
+res.json({
+message: "License account reset successfully"
+});
 
-    } catch (error) {
+} catch (error) {
 
-        console.error("RESET LICENSE ERROR:", error);
-        res.status(500).json({ message: "Server error" });
+console.error("RESET LICENSE ERROR:", error);
+res.status(500).json({ message: "Server error" });
 
-    }
+}
 
 };
 
@@ -378,42 +384,42 @@ const resetLicenseAccount = async (req, res) => {
 // ==========================
 const deleteLicense = async (req, res) => {
 
-    const { id } = req.params;
+const { id } = req.params;
 
-    try {
+try {
 
-        const result = await pool.query(
-            "DELETE FROM licenses WHERE id = $1 RETURNING *",
-            [id]
-        );
+const result = await pool.query(
+"DELETE FROM licenses WHERE id = $1 RETURNING *",
+[id]
+);
 
-        if (result.rows.length === 0) {
+if (result.rows.length === 0) {
 
-            return res.status(404).json({
-                message:"License not found"
-            });
+return res.status(404).json({
+message:"License not found"
+});
 
-        }
+}
 
-        res.json({
-            message:"License deleted successfully"
-        });
+res.json({
+message:"License deleted successfully"
+});
 
-    } catch (error) {
+} catch (error) {
 
-        console.error("DELETE LICENSE ERROR:", error);
-        res.status(500).json({ message:"Server error" });
+console.error("DELETE LICENSE ERROR:", error);
+res.status(500).json({ message:"Server error" });
 
-    }
+}
 
 };
 
 module.exports = {
-    createLicense,
-    updateLicenseStatus,
-    validateLicense,
-    getAllLicenses,
-    getLicensesByUser,
-    resetLicenseAccount,
-    deleteLicense
+createLicense,
+updateLicenseStatus,
+validateLicense,
+getAllLicenses,
+getLicensesByUser,
+resetLicenseAccount,
+deleteLicense
 };
