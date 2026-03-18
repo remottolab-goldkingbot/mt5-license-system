@@ -349,7 +349,7 @@ res.status(500).json({ message:"Server error" });
 
 
 // ==========================
-// RESET LICENSE ACCOUNT
+// RESET LICENSE ACCOUNT (FIX)
 // ==========================
 const resetLicenseAccount = async (req, res) => {
 
@@ -359,8 +359,13 @@ try {
 
 await pool.query(
 `UPDATE licenses
-SET account_number = NULL,
-last_seen = NULL
+SET 
+account_number = NULL,
+last_seen = NULL,
+profit = 0,
+balance = 0,
+equity = 0,
+drawdown = 0
 WHERE id = $1`,
 [id]
 );
