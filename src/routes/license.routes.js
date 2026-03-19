@@ -24,7 +24,7 @@ const {
 // CREATE LICENSE
 router.post('/', verifyToken, verifyAdmin, createLicense);
 
-// GET ALL LICENSES
+// GET ALL LICENSES (PROTEGIDO)
 router.get('/', verifyToken, verifyAdmin, getAllLicenses);
 
 // UPDATE LICENSE STATUS
@@ -41,10 +41,13 @@ router.delete('/:id', verifyToken, verifyAdmin, deleteLicense);
 
 
 // ==========================
-// PUBLIC ROUTE (MT5 EA)
+// PUBLIC ROUTES
 // ==========================
 
-// VALIDATE LICENSE (NO TOKEN REQUIRED)
+// 🔥 NUEVO: GET ALL LICENSES (SIN TOKEN PARA PANEL)
+router.get('/public/licenses', getAllLicenses);
+
+// VALIDATE LICENSE (MT5 EA)
 router.post('/validate', validateLicense);
 
 
