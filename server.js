@@ -41,11 +41,14 @@ pool.query('SELECT current_database()', (err, result) => {
 // MIDDLEWARE
 // ==========================
 
-const allowedOrigin = process.env.FRONTEND_URL || "*";
-
+// 🔥 CORS CORREGIDO PARA VERCEL + LOCAL
 app.use(cors({
-    origin: allowedOrigin,
-    credentials: true
+  origin: [
+    "http://localhost:5173",
+    "https://mt5-admin-dashboard.vercel.app"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
 }));
 
 app.use(express.json());
