@@ -18,6 +18,17 @@ const {
 
 
 // ==========================
+// PUBLIC ROUTES (🔥 PRIMERO)
+// ==========================
+
+// 🔥 GET ALL LICENSES (SIN TOKEN PARA PANEL)
+router.get('/public/licenses', getAllLicenses);
+
+// VALIDATE LICENSE (MT5 EA)
+router.post('/validate', validateLicense);
+
+
+// ==========================
 // ADMIN ROUTES (PANEL)
 // ==========================
 
@@ -38,17 +49,6 @@ router.get('/user/:user_id', verifyToken, verifyAdmin, getLicensesByUser);
 
 // DELETE LICENSE
 router.delete('/:id', verifyToken, verifyAdmin, deleteLicense);
-
-
-// ==========================
-// PUBLIC ROUTES
-// ==========================
-
-// 🔥 NUEVO: GET ALL LICENSES (SIN TOKEN PARA PANEL)
-router.get('/public/licenses', getAllLicenses);
-
-// VALIDATE LICENSE (MT5 EA)
-router.post('/validate', validateLicense);
 
 
 module.exports = router;
