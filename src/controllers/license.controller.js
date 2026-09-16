@@ -541,5 +541,6 @@ getAllLicenses,
 getLicensesByUser,
 resetLicenseAccount,
 deleteLicense,
-updateLicenseInfo
+updateLicenseInfo,
+getMyLicenses
 };
