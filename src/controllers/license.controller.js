@@ -495,6 +495,43 @@ res.status(500).json({ message: "Server error" });
 }
 };
 
+// ==========================
+// GET MY LICENSES (usuario logueado ve SOLO las suyas) — NUEVO
+// ==========================
+const getMyLicenses = async (req, res) => {
+
+try {
+
+const result = await pool.query(
+`SELECT
+id,
+license_key,
+status,
+account_number,
+created_at,
+last_seen,
+expires_at,
+profit,
+balance,
+equity,
+drawdown,
+plan
+FROM licenses
+WHERE user_id = $1
+ORDER BY created_at DESC`,
+[req.user.id]
+);
+
+res.json(result.rows);
+
+} catch (error) {
+
+console.error("GET MY LICENSES ERROR:", error);
+res.status(500).json({ message: "Server error" });
+
+}
+
+};
 
 module.exports = {
 createLicense,
