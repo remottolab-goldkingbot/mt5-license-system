@@ -6,7 +6,8 @@ const bcrypt = require('bcrypt');
 // REGISTER
 // ==========================
 const register = async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, password } = req.body;
+    const email = (req.body.email || "").trim().toLowerCase();
 
     try {
         // Verificar si el usuario ya existe
@@ -16,15 +17,37 @@ const register = async (req, res) => {
         );
 
         if (userExists.rows.length > 0) {
-            return res.status(400).json({ message: "User already exists" });
+            const existing = userExists.rows[0];
+
+            if (existing.password) {
+                // Ya tiene contraseña real: es un registro duplicado de verdad, se bloquea.
+                return res.status(400).json({ message: "User already exists" });
+            }
+
+            // Existe como "cascarón" (se creó al generarle una licencia, sin contraseña) —
+            // le dejamos reclamar su cuenta poniendo contraseña por primera vez.
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+            const claimedUser = await pool.query(
+                `UPDATE users SET password = $1, name = COALESCE($2, name)
+                 WHERE id = $3
+                 RETURNING id, name, email, role, created_at`,
+                [hashedPassword, name, existing.id]
+            );
+
+            return res.status(201).json({
+                message: "Cuenta reclamada correctamente",
+                user: claimedUser.rows[0]
+            });
         }
 
         // Encriptar contraseña
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Insertar usuario
+        // Insertar usuario — el rol SIEMPRE se fuerza a 'user' aquí.
+        // Nunca se acepta un "role" desde el body del request (evita que alguien se auto-asigne admin).
         const newUser = await pool.query(
-            "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email, role, created_at",
+            "INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, 'user') RETURNING id, name, email, role, created_at",
             [name, email, hashedPassword]
         );
 
@@ -43,7 +66,8 @@ const register = async (req, res) => {
 // LOGIN
 // ==========================
 const login = async (req, res) => {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = (req.body.email || "").trim().toLowerCase();
 
     try {
         const user = await pool.query(
