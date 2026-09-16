@@ -9,7 +9,8 @@ const {
     getLicensesByUser,
     resetLicenseAccount,
     deleteLicense,
-    updateLicenseInfo
+    updateLicenseInfo,
+    getMyLicenses
 } = require('../controllers/license.controller');
 
 const {
@@ -27,6 +28,9 @@ router.get('/public/licenses', getAllLicenses);
 
 // VALIDATE LICENSE (MT5 EA)
 router.post('/validate', validateLicense);
+
+// MIS LICENCIAS (usuario logueado, no admin) — NUEVO
+router.get('/my', verifyToken, getMyLicenses);
 
 
 // ==========================
