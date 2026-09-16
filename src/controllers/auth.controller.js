@@ -6,7 +6,7 @@ const bcrypt = require('bcrypt');
 // REGISTER
 // ==========================
 const register = async (req, res) => {
-    const { name, password } = req.body;
+    const { name, password, phone } = req.body;
     const email = (req.body.email || "").trim().toLowerCase();
 
     try {
@@ -29,10 +29,10 @@ const register = async (req, res) => {
             const hashedPassword = await bcrypt.hash(password, 10);
 
             const claimedUser = await pool.query(
-                `UPDATE users SET password = $1, name = COALESCE($2, name)
-                 WHERE id = $3
+                `UPDATE users SET password = $1, name = COALESCE($2, name), phone = COALESCE($3, phone)
+                 WHERE id = $4
                  RETURNING id, name, email, role, created_at`,
-                [hashedPassword, name, existing.id]
+                [hashedPassword, name, phone, existing.id]
             );
 
             return res.status(201).json({
@@ -47,8 +47,8 @@ const register = async (req, res) => {
         // Insertar usuario — el rol SIEMPRE se fuerza a 'user' aquí.
         // Nunca se acepta un "role" desde el body del request (evita que alguien se auto-asigne admin).
         const newUser = await pool.query(
-            "INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, 'user') RETURNING id, name, email, role, created_at",
-            [name, email, hashedPassword]
+            "INSERT INTO users (name, email, password, phone, role) VALUES ($1, $2, $3, $4, 'user') RETURNING id, name, email, role, created_at",
+            [name, email, hashedPassword, phone]
         );
 
         res.status(201).json({
