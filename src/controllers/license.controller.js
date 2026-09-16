@@ -25,7 +25,8 @@ return `MT5-${segment()}-${segment()}-${segment()}`;
 // ==========================
 const createLicense = async (req, res) => {
 
-const { name, email, phone, plan } = req.body;
+const { name, phone, plan } = req.body;
+const email = (req.body.email || "").trim().toLowerCase();
 
 try {
 
@@ -57,8 +58,8 @@ let userId;
 if (user.rows.length === 0) {
 
 const newUser = await pool.query(
-`INSERT INTO users (name,email,phone)
-VALUES ($1,$2,$3)
+`INSERT INTO users (name,email,phone,role)
+VALUES ($1,$2,$3,'user')
 RETURNING *`,
 [name,email,phone]
 );
@@ -288,6 +289,7 @@ l.profit,
 l.balance,
 l.equity,
 l.drawdown,
+l.plan,
 u.name,
 u.email,
 u.phone
@@ -419,6 +421,81 @@ res.status(500).json({ message:"Server error" });
 
 };
 
+// ==========================
+// UPDATE LICENSE INFO (NOMBRE, CORREO, TELEFONO, PLAN) — NUEVO, NO TOCA NADA EXISTENTE
+// ==========================
+const updateLicenseInfo = async (req, res) => {
+
+const { id } = req.params;
+const { name, phone, plan } = req.body;
+const email = req.body.email ? req.body.email.trim().toLowerCase() : req.body.email;
+
+try {
+
+const license = await pool.query(
+"SELECT user_id, plan FROM licenses WHERE id = $1",
+[id]
+);
+
+if (license.rows.length === 0) {
+return res.status(404).json({ message: "License not found" });
+}
+
+const userId = license.rows[0].user_id;
+
+// Si cambia el correo, verificar que no choque con otro usuario existente
+if (email) {
+const emailOwner = await pool.query(
+"SELECT id FROM users WHERE email = $1 AND id != $2",
+[email, userId]
+);
+
+if (emailOwner.rows.length > 0) {
+return res.status(400).json({ message: "Ese correo ya está en uso por otro usuario" });
+}
+}
+
+// Recalcular expiración solo si el plan cambia
+let expiresAt = null;
+const finalPlan = plan || license.rows[0].plan;
+
+if (finalPlan === "monthly") {
+expiresAt = new Date();
+expiresAt.setMonth(expiresAt.getMonth() + 1);
+}
+
+if (finalPlan === "yearly") {
+expiresAt = new Date();
+expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+}
+
+await pool.query(
+`UPDATE users SET name = $1, email = $2, phone = $3 WHERE id = $4`,
+[name, email, phone, userId]
+);
+
+const updatedLicense = await pool.query(
+`UPDATE licenses
+SET name = $1, email = $2, phone = $3, plan = $4, expires_at = $5
+WHERE id = $6
+RETURNING *`,
+[name, email, phone, finalPlan, expiresAt, id]
+);
+
+res.json({
+message: "Licencia actualizada correctamente",
+license: updatedLicense.rows[0]
+});
+
+} catch (error) {
+
+console.error("UPDATE LICENSE INFO ERROR:", error);
+res.status(500).json({ message: "Server error" });
+
+}
+};
+
+
 module.exports = {
 createLicense,
 updateLicenseStatus,
@@ -426,5 +503,6 @@ validateLicense,
 getAllLicenses,
 getLicensesByUser,
 resetLicenseAccount,
-deleteLicense
+deleteLicense,
+updateLicenseInfo
 };
