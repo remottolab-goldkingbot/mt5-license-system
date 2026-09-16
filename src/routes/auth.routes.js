@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { login, register } = require('../controllers/auth.controller');
+const { login, register, getAllUsers } = require('../controllers/auth.controller');
 const { verifyToken, verifyAdmin } = require('../middleware/auth.middleware');
 
 // ==========================
@@ -12,6 +12,11 @@ router.post('/register', register);
 // LOGIN
 // ==========================
 router.post('/login', login);
+
+// ==========================
+// GET ALL USERS (admin) — NUEVO
+// ==========================
+router.get('/users', verifyToken, verifyAdmin, getAllUsers);
 
 // ==========================
 // PROTECTED ROUTE
