@@ -8,7 +8,8 @@ const {
     getAllLicenses,
     getLicensesByUser,
     resetLicenseAccount,
-    deleteLicense
+    deleteLicense,
+    updateLicenseInfo
 } = require('../controllers/license.controller');
 
 const {
@@ -40,6 +41,9 @@ router.get('/', verifyToken, verifyAdmin, getAllLicenses);
 
 // UPDATE LICENSE STATUS
 router.put('/:id/status', verifyToken, verifyAdmin, updateLicenseStatus);
+
+// UPDATE LICENSE INFO (nombre, correo, telefono, plan) — NUEVO
+router.put('/:id', verifyToken, verifyAdmin, updateLicenseInfo);
 
 // RESET LICENSE ACCOUNT
 router.put('/:id/reset', verifyToken, verifyAdmin, resetLicenseAccount);
