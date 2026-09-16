@@ -141,4 +141,41 @@ const getAllUsers = async (req, res) => {
     }
 };
 
-module.exports = { register, login, getAllUsers };
+// ==========================
+// DELETE USER (admin) — NUEVO, para "Gestión de Alumnos"
+// ==========================
+const deleteUser = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const target = await pool.query("SELECT role FROM users WHERE id = $1", [id]);
+
+        if (target.rows.length === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        if (target.rows[0].role === "admin") {
+            return res.status(400).json({ message: "No se puede eliminar una cuenta de administrador desde aquí" });
+        }
+
+        const licenseCheck = await pool.query(
+            "SELECT COUNT(*) FROM licenses WHERE user_id = $1",
+            [id]
+        );
+
+        if (Number(licenseCheck.rows[0].count) > 0) {
+            return res.status(400).json({
+                message: "Este usuario tiene licencias asociadas. Elimina primero sus licencias desde el Generador de Licencias."
+            });
+        }
+
+        await pool.query("DELETE FROM users WHERE id = $1", [id]);
+
+        res.json({ message: "Usuario eliminado correctamente" });
+    } catch (error) {
+        console.error("DELETE USER ERROR:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+module.exports = { register, login, getAllUsers, deleteUser };
