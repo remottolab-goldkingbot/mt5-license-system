@@ -171,6 +171,39 @@ const updateMembership = async (req, res) => {
 };
 
 // ==========================
+// UPDATE USER ROLE (admin) — NUEVO, para limpiar cuentas de prueba marcadas admin por error
+// Solo permite quitar el rol admin (dejarlo en 'user'), nunca otorgarlo, y nunca sobre uno mismo.
+// ==========================
+const updateUserRole = async (req, res) => {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (role !== "user") {
+        return res.status(400).json({ message: "Esta acción solo permite quitar el rol de administrador (pasar a 'user')" });
+    }
+
+    if (Number(id) === Number(req.user.id)) {
+        return res.status(400).json({ message: "No puedes quitarte el rol de administrador a ti mismo" });
+    }
+
+    try {
+        const updated = await pool.query(
+            `UPDATE users SET role = 'user' WHERE id = $1 RETURNING id, name, email, role`,
+            [id]
+        );
+
+        if (updated.rows.length === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        res.json({ message: "Rol actualizado correctamente", user: updated.rows[0] });
+    } catch (error) {
+        console.error("UPDATE USER ROLE ERROR:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// ==========================
 // DELETE USER (admin) — NUEVO, para "Gestión de Alumnos"
 // ==========================
 const deleteUser = async (req, res) => {
@@ -207,4 +240,4 @@ const deleteUser = async (req, res) => {
     }
 };
 
-module.exports = { register, login, getAllUsers, deleteUser, updateMembership };
+module.exports = { register, login, getAllUsers, deleteUser, updateMembership, updateUserRole };
