@@ -16,6 +16,7 @@ const pool = require('./src/config/database');
 
 const authRoutes = require('./src/routes/auth.routes');
 const licenseRoutes = require('./src/routes/license.routes');
+const journalRoutes = require('./src/routes/journal.routes');
 
 // ==========================
 // CREATE APP
@@ -52,6 +53,7 @@ app.use(express.json());
 
 app.use('/auth', authRoutes);
 app.use('/licenses', licenseRoutes);
+app.use('/journal', journalRoutes);
 
 // Root test
 app.get('/', (req, res) => {
