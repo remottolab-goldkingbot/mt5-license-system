@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { login, register, getAllUsers, deleteUser } = require('../controllers/auth.controller');
+const { login, register, getAllUsers, deleteUser, updateMembership } = require('../controllers/auth.controller');
 const { verifyToken, verifyAdmin } = require('../middleware/auth.middleware');
 
 // ==========================
@@ -22,6 +22,11 @@ router.get('/users', verifyToken, verifyAdmin, getAllUsers);
 // DELETE USER (admin) — NUEVO
 // ==========================
 router.delete('/users/:id', verifyToken, verifyAdmin, deleteUser);
+
+// ==========================
+// UPDATE MEMBERSHIP (admin) — NUEVO
+// ==========================
+router.put('/users/:id/membership', verifyToken, verifyAdmin, updateMembership);
 
 // ==========================
 // PROTECTED ROUTE

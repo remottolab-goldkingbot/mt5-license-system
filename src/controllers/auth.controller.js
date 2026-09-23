@@ -31,7 +31,7 @@ const register = async (req, res) => {
             const claimedUser = await pool.query(
                 `UPDATE users SET password = $1, name = COALESCE($2, name), phone = COALESCE($3, phone)
                  WHERE id = $4
-                 RETURNING id, name, email, role, created_at`,
+                 RETURNING id, name, email, role, membership, created_at`,
                 [hashedPassword, name, phone, existing.id]
             );
 
@@ -47,7 +47,7 @@ const register = async (req, res) => {
         // Insertar usuario — el rol SIEMPRE se fuerza a 'user' aquí.
         // Nunca se acepta un "role" desde el body del request (evita que alguien se auto-asigne admin).
         const newUser = await pool.query(
-            "INSERT INTO users (name, email, password, phone, role) VALUES ($1, $2, $3, $4, 'user') RETURNING id, name, email, role, created_at",
+            "INSERT INTO users (name, email, password, phone, role) VALUES ($1, $2, $3, $4, 'user') RETURNING id, name, email, role, membership, created_at",
             [name, email, hashedPassword, phone]
         );
 
@@ -126,6 +126,7 @@ const getAllUsers = async (req, res) => {
                 u.email,
                 u.phone,
                 u.role,
+                u.membership,
                 u.created_at,
                 COUNT(l.id) AS license_count
              FROM users u
@@ -137,6 +138,34 @@ const getAllUsers = async (req, res) => {
         res.json(result.rows);
     } catch (error) {
         console.error("GET ALL USERS ERROR:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// ==========================
+// UPDATE MEMBERSHIP (admin) — NUEVO, Free / Pro por alumno
+// ==========================
+const updateMembership = async (req, res) => {
+    const { id } = req.params;
+    const { membership } = req.body;
+
+    if (!["free", "pro"].includes(membership)) {
+        return res.status(400).json({ message: "Membresía inválida (usa 'free' o 'pro')" });
+    }
+
+    try {
+        const updated = await pool.query(
+            `UPDATE users SET membership = $1 WHERE id = $2 RETURNING id, name, email, membership`,
+            [membership, id]
+        );
+
+        if (updated.rows.length === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        res.json({ message: "Membresía actualizada correctamente", user: updated.rows[0] });
+    } catch (error) {
+        console.error("UPDATE MEMBERSHIP ERROR:", error);
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -178,4 +207,4 @@ const deleteUser = async (req, res) => {
     }
 };
 
-module.exports = { register, login, getAllUsers, deleteUser };
+module.exports = { register, login, getAllUsers, deleteUser, updateMembership };
