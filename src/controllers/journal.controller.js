@@ -187,4 +187,83 @@ const deleteTrade = async (req, res) => {
     }
 };
 
-module.exports = { createTrade, getMyTrades, updateTrade, deleteTrade };
+// ==========================
+// GET JOURNAL SETTINGS (tipo de cuenta, metas — solo PRO las usa, pero cualquiera puede leer/guardar)
+// ==========================
+const getSettings = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM journal_settings WHERE user_id = $1`,
+            [req.user.id]
+        );
+
+        if (result.rows.length === 0) {
+            // Sin configuración todavía: valores por defecto (cuenta Real, sin metas)
+            return res.json({
+                user_id: req.user.id,
+                account_type: "real",
+                initial_balance: 0,
+                profit_target: null,
+                daily_limit: null,
+                max_limit: null,
+                has_personal_goals: false
+            });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error("GET JOURNAL SETTINGS ERROR:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// ==========================
+// UPDATE JOURNAL SETTINGS (upsert)
+// ==========================
+const updateSettings = async (req, res) => {
+    const {
+        account_type,
+        initial_balance,
+        profit_target,
+        daily_limit,
+        max_limit,
+        has_personal_goals
+    } = req.body;
+
+    if (!["fondeo", "real"].includes(account_type)) {
+        return res.status(400).json({ message: "account_type debe ser 'fondeo' o 'real'" });
+    }
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO journal_settings
+                (user_id, account_type, initial_balance, profit_target, daily_limit, max_limit, has_personal_goals, updated_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())
+             ON CONFLICT (user_id) DO UPDATE SET
+                account_type = EXCLUDED.account_type,
+                initial_balance = EXCLUDED.initial_balance,
+                profit_target = EXCLUDED.profit_target,
+                daily_limit = EXCLUDED.daily_limit,
+                max_limit = EXCLUDED.max_limit,
+                has_personal_goals = EXCLUDED.has_personal_goals,
+                updated_at = NOW()
+             RETURNING *`,
+            [
+                req.user.id,
+                account_type,
+                initial_balance || 0,
+                profit_target || null,
+                daily_limit || null,
+                max_limit || null,
+                Boolean(has_personal_goals)
+            ]
+        );
+
+        res.json({ message: "Configuración guardada correctamente", settings: result.rows[0] });
+    } catch (error) {
+        console.error("UPDATE JOURNAL SETTINGS ERROR:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+module.exports = { createTrade, getMyTrades, updateTrade, deleteTrade, getSettings, updateSettings };
