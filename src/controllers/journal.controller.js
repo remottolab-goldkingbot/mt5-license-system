@@ -25,6 +25,25 @@ const createTrade = async (req, res) => {
     }
 
     try {
+        // Límite diario de 3 registros para usuarios Free (PRO es ilimitado)
+        const userRow = await pool.query("SELECT membership FROM users WHERE id = $1", [req.user.id]);
+        const membership = userRow.rows[0]?.membership || "free";
+
+        if (membership !== "pro") {
+            const todayCount = await pool.query(
+                `SELECT COUNT(*) FROM journal_trades
+                 WHERE user_id = $1 AND created_at::date = CURRENT_DATE`,
+                [req.user.id]
+            );
+
+            if (Number(todayCount.rows[0].count) >= 3) {
+                return res.status(403).json({
+                    message: "Ya usaste tus 3 registros gratuitos de hoy. Mejora a PRO para registro ilimitado.",
+                    limitReached: true
+                });
+            }
+        }
+
         const result = await pool.query(
             `INSERT INTO journal_trades
                 (user_id, asset, type, entry_price, sl, tp, lots, pnl, session, setup, emotion, error_tag, chart_url, notes)
