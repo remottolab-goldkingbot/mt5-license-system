@@ -92,6 +92,79 @@ const getMyTrades = async (req, res) => {
 };
 
 // ==========================
+// UPDATE TRADE (solo si es propio)
+// ==========================
+const updateTrade = async (req, res) => {
+    const { id } = req.params;
+    const {
+        asset,
+        type,
+        entry_price,
+        sl,
+        tp,
+        lots,
+        pnl,
+        session,
+        setup,
+        emotion,
+        error_tag,
+        chart_url,
+        notes
+    } = req.body;
+
+    if (!asset || !type || pnl === undefined || pnl === null || pnl === "") {
+        return res.status(400).json({ message: "asset, type y pnl son obligatorios" });
+    }
+
+    try {
+        const result = await pool.query(
+            `UPDATE journal_trades SET
+                asset = $1,
+                type = $2,
+                entry_price = $3,
+                sl = $4,
+                tp = $5,
+                lots = $6,
+                pnl = $7,
+                session = $8,
+                setup = $9,
+                emotion = $10,
+                error_tag = $11,
+                chart_url = $12,
+                notes = $13
+             WHERE id = $14 AND user_id = $15
+             RETURNING *`,
+            [
+                asset,
+                type,
+                entry_price || null,
+                sl || null,
+                tp || null,
+                lots || null,
+                pnl,
+                session || null,
+                setup || null,
+                emotion || null,
+                error_tag || null,
+                chart_url || null,
+                notes || null,
+                id,
+                req.user.id
+            ]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "Trade no encontrado" });
+        }
+
+        res.json({ message: "Trade actualizado correctamente", trade: result.rows[0] });
+    } catch (error) {
+        console.error("UPDATE TRADE ERROR:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// ==========================
 // DELETE TRADE (solo si es propio)
 // ==========================
 const deleteTrade = async (req, res) => {
@@ -114,4 +187,4 @@ const deleteTrade = async (req, res) => {
     }
 };
 
-module.exports = { createTrade, getMyTrades, deleteTrade };
+module.exports = { createTrade, getMyTrades, updateTrade, deleteTrade };
