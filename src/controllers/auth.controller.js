@@ -240,4 +240,26 @@ const deleteUser = async (req, res) => {
     }
 };
 
-module.exports = { register, login, getAllUsers, deleteUser, updateMembership, updateUserRole };
+// ==========================
+// UPDATE MY TRADINGVIEW USERNAME — NUEVO
+// ==========================
+const updateTradingViewUsername = async (req, res) => {
+    const { tradingview_username } = req.body;
+
+    try {
+        const result = await pool.query(
+            `UPDATE users SET tradingview_username = $1 WHERE id = $2 RETURNING id, tradingview_username`,
+            [tradingview_username || null, req.user.id]
+        );
+
+        res.json({
+            message: "Usuario de TradingView actualizado correctamente",
+            tradingview_username: result.rows[0].tradingview_username
+        });
+    } catch (error) {
+        console.error("UPDATE TRADINGVIEW USERNAME ERROR:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+module.exports = { register, login, getAllUsers, deleteUser, updateMembership, updateUserRole, updateTradingViewUsername };
