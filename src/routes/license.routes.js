@@ -10,7 +10,8 @@ const {
     resetLicenseAccount,
     deleteLicense,
     updateLicenseInfo,
-    getMyLicenses
+    getMyLicenses,
+    toggleMyLicenseStatus
 } = require('../controllers/license.controller');
 
 const {
@@ -31,6 +32,9 @@ router.post('/validate', validateLicense);
 
 // MIS LICENCIAS (usuario logueado, no admin) — NUEVO
 router.get('/my', verifyToken, getMyLicenses);
+
+// EL ALUMNO PRENDE/APAGA SU PROPIO EA (no admin) — NUEVO
+router.put('/my/:id/status', verifyToken, toggleMyLicenseStatus);
 
 
 // ==========================

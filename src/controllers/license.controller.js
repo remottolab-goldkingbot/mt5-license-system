@@ -25,7 +25,7 @@ return `MT5-${segment()}-${segment()}-${segment()}`;
 // ==========================
 const createLicense = async (req, res) => {
 
-const { name, phone, plan } = req.body;
+const { name, phone, plan, ea_name } = req.body;
 const email = (req.body.email || "").trim().toLowerCase();
 
 try {
@@ -76,8 +76,8 @@ const licenseKey = generateLicenseKey();
 
 const newLicense = await pool.query(
 `INSERT INTO licenses
-(user_id,license_key,name,email,phone,plan,status,expires_at,created_at)
-VALUES ($1,$2,$3,$4,$5,$6,'active',$7,NOW())
+(user_id,license_key,name,email,phone,plan,ea_name,status,expires_at,created_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8,NOW())
 RETURNING *`,
 [
 userId,
@@ -86,6 +86,7 @@ name,
 email,
 phone,
 plan,
+ea_name || null,
 expiresAt
 ]
 );
@@ -164,7 +165,8 @@ account_number,
 profit,
 balance,
 equity,
-drawdown
+drawdown,
+risk_percent
 } = req.body;
 
 if (!license_key || !account_number) {
@@ -214,14 +216,16 @@ last_seen=NOW(),
 profit=COALESCE($2,profit),
 balance=COALESCE($3,balance),
 equity=COALESCE($4,equity),
-drawdown=COALESCE($5,drawdown)
-WHERE id=$6`,
+drawdown=COALESCE($5,drawdown),
+risk_percent=COALESCE($6,risk_percent)
+WHERE id=$7`,
 [
 account_number,
 profit,
 balance,
 equity,
 drawdown,
+risk_percent,
 license.id
 ]
 );
@@ -246,13 +250,15 @@ SET last_seen = NOW(),
 profit = COALESCE($1,profit),
 balance = COALESCE($2,balance),
 equity = COALESCE($3,equity),
-drawdown = COALESCE($4,drawdown)
-WHERE id = $5`,
+drawdown = COALESCE($4,drawdown),
+risk_percent = COALESCE($5,risk_percent)
+WHERE id = $6`,
 [
 profit,
 balance,
 equity,
 drawdown,
+risk_percent,
 license.id
 ]
 );
@@ -290,6 +296,8 @@ l.balance,
 l.equity,
 l.drawdown,
 l.plan,
+l.ea_name,
+l.risk_percent,
 u.name,
 u.email,
 u.phone
@@ -331,7 +339,10 @@ expires_at,
 profit,
 balance,
 equity,
-drawdown
+drawdown,
+plan,
+ea_name,
+risk_percent
 FROM licenses
 WHERE user_id = $1
 ORDER BY created_at DESC`,
@@ -427,7 +438,7 @@ res.status(500).json({ message:"Server error" });
 const updateLicenseInfo = async (req, res) => {
 
 const { id } = req.params;
-const { name, phone, plan } = req.body;
+const { name, phone, plan, ea_name } = req.body;
 const email = req.body.email ? req.body.email.trim().toLowerCase() : req.body.email;
 
 try {
@@ -476,10 +487,10 @@ await pool.query(
 
 const updatedLicense = await pool.query(
 `UPDATE licenses
-SET name = $1, email = $2, phone = $3, plan = $4, expires_at = $5
-WHERE id = $6
+SET name = $1, email = $2, phone = $3, plan = $4, expires_at = $5, ea_name = $6
+WHERE id = $7
 RETURNING *`,
-[name, email, phone, finalPlan, expiresAt, id]
+[name, email, phone, finalPlan, expiresAt, ea_name || null, id]
 );
 
 res.json({
@@ -494,6 +505,7 @@ res.status(500).json({ message: "Server error" });
 
 }
 };
+
 
 // ==========================
 // GET MY LICENSES (usuario logueado ve SOLO las suyas) — NUEVO
@@ -515,7 +527,9 @@ profit,
 balance,
 equity,
 drawdown,
-plan
+plan,
+ea_name,
+risk_percent
 FROM licenses
 WHERE user_id = $1
 ORDER BY created_at DESC`,
@@ -533,6 +547,53 @@ res.status(500).json({ message: "Server error" });
 
 };
 
+
+// ==========================
+// TOGGLE MY LICENSE STATUS (el alumno prende/apaga SU PROPIO EA) — NUEVO
+// ==========================
+const toggleMyLicenseStatus = async (req, res) => {
+
+const { id } = req.params;
+const { status } = req.body;
+
+if (!['active','inactive'].includes(status)) {
+return res.status(400).json({ message: "Invalid status" });
+}
+
+try {
+
+const license = await pool.query(
+"SELECT user_id FROM licenses WHERE id = $1",
+[id]
+);
+
+if (license.rows.length === 0) {
+return res.status(404).json({ message: "License not found" });
+}
+
+if (Number(license.rows[0].user_id) !== Number(req.user.id)) {
+return res.status(403).json({ message: "Esta licencia no te pertenece" });
+}
+
+const updatedLicense = await pool.query(
+`UPDATE licenses SET status = $1 WHERE id = $2 RETURNING *`,
+[status, id]
+);
+
+res.json({
+message: "Estado actualizado correctamente",
+license: updatedLicense.rows[0]
+});
+
+} catch (error) {
+
+console.error("TOGGLE MY LICENSE STATUS ERROR:", error);
+res.status(500).json({ message: "Server error" });
+
+}
+};
+
+
 module.exports = {
 createLicense,
 updateLicenseStatus,
@@ -542,5 +603,6 @@ getLicensesByUser,
 resetLicenseAccount,
 deleteLicense,
 updateLicenseInfo,
-getMyLicenses
+getMyLicenses,
+toggleMyLicenseStatus
 };
