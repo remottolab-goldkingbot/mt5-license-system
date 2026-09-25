@@ -25,7 +25,7 @@ return `MT5-${segment()}-${segment()}-${segment()}`;
 // ==========================
 const createLicense = async (req, res) => {
 
-const { name, phone, plan, ea_name } = req.body;
+const { name, phone, plan, ea_name, duration_days } = req.body;
 const email = (req.body.email || "").trim().toLowerCase();
 
 try {
@@ -38,14 +38,9 @@ message: "Name and email are required"
 
 let expiresAt = null;
 
-if (plan === "monthly") {
+if (duration_days !== null && duration_days !== undefined && duration_days !== "") {
 expiresAt = new Date();
-expiresAt.setMonth(expiresAt.getMonth() + 1);
-}
-
-if (plan === "yearly") {
-expiresAt = new Date();
-expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+expiresAt.setDate(expiresAt.getDate() + Number(duration_days));
 }
 
 let user = await pool.query(
@@ -76,8 +71,8 @@ const licenseKey = generateLicenseKey();
 
 const newLicense = await pool.query(
 `INSERT INTO licenses
-(user_id,license_key,name,email,phone,plan,ea_name,status,expires_at,created_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8,NOW())
+(user_id,license_key,name,email,phone,plan,ea_name,duration_days,status,expires_at,created_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'active',$9,NOW())
 RETURNING *`,
 [
 userId,
@@ -87,6 +82,7 @@ email,
 phone,
 plan,
 ea_name || null,
+duration_days === "" || duration_days === undefined ? null : duration_days,
 expiresAt
 ]
 );
@@ -298,6 +294,7 @@ l.drawdown,
 l.plan,
 l.ea_name,
 l.risk_percent,
+l.duration_days,
 u.name,
 u.email,
 u.phone
@@ -342,7 +339,8 @@ equity,
 drawdown,
 plan,
 ea_name,
-risk_percent
+risk_percent,
+duration_days
 FROM licenses
 WHERE user_id = $1
 ORDER BY created_at DESC`,
@@ -438,13 +436,13 @@ res.status(500).json({ message:"Server error" });
 const updateLicenseInfo = async (req, res) => {
 
 const { id } = req.params;
-const { name, phone, plan, ea_name } = req.body;
+const { name, phone, plan, ea_name, duration_days } = req.body;
 const email = req.body.email ? req.body.email.trim().toLowerCase() : req.body.email;
 
 try {
 
 const license = await pool.query(
-"SELECT user_id, plan FROM licenses WHERE id = $1",
+"SELECT user_id, plan, duration_days FROM licenses WHERE id = $1",
 [id]
 );
 
@@ -466,18 +464,14 @@ return res.status(400).json({ message: "Ese correo ya está en uso por otro usua
 }
 }
 
-// Recalcular expiración solo si el plan cambia
-let expiresAt = null;
+// Recalcular expiración solo si vino una nueva duración
 const finalPlan = plan || license.rows[0].plan;
+const finalDuration = duration_days !== undefined ? duration_days : license.rows[0].duration_days;
 
-if (finalPlan === "monthly") {
+let expiresAt = null;
+if (finalDuration !== null && finalDuration !== undefined && finalDuration !== "") {
 expiresAt = new Date();
-expiresAt.setMonth(expiresAt.getMonth() + 1);
-}
-
-if (finalPlan === "yearly") {
-expiresAt = new Date();
-expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+expiresAt.setDate(expiresAt.getDate() + Number(finalDuration));
 }
 
 await pool.query(
@@ -487,10 +481,10 @@ await pool.query(
 
 const updatedLicense = await pool.query(
 `UPDATE licenses
-SET name = $1, email = $2, phone = $3, plan = $4, expires_at = $5, ea_name = $6
-WHERE id = $7
+SET name = $1, email = $2, phone = $3, plan = $4, expires_at = $5, ea_name = $6, duration_days = $7
+WHERE id = $8
 RETURNING *`,
-[name, email, phone, finalPlan, expiresAt, ea_name || null, id]
+[name, email, phone, finalPlan, expiresAt, ea_name || null, finalDuration === "" ? null : finalDuration, id]
 );
 
 res.json({
@@ -529,7 +523,8 @@ equity,
 drawdown,
 plan,
 ea_name,
-risk_percent
+risk_percent,
+duration_days
 FROM licenses
 WHERE user_id = $1
 ORDER BY created_at DESC`,
