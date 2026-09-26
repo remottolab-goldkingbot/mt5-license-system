@@ -262,4 +262,114 @@ const updateTradingViewUsername = async (req, res) => {
     }
 };
 
-module.exports = { register, login, getAllUsers, deleteUser, updateMembership, updateUserRole, updateTradingViewUsername };
+// ==========================
+// UPDATE MY PROFILE (nombre, correo, telefono) — NUEVO, cualquier usuario logueado
+// ==========================
+const updateMyProfile = async (req, res) => {
+    const { name, phone } = req.body;
+    const email = req.body.email ? req.body.email.trim().toLowerCase() : undefined;
+
+    try {
+        if (email) {
+            const emailOwner = await pool.query(
+                "SELECT id FROM users WHERE email = $1 AND id != $2",
+                [email, req.user.id]
+            );
+            if (emailOwner.rows.length > 0) {
+                return res.status(400).json({ message: "Ese correo ya está en uso por otro usuario" });
+            }
+        }
+
+        const result = await pool.query(
+            `UPDATE users SET
+                name = COALESCE($1, name),
+                email = COALESCE($2, email),
+                phone = COALESCE($3, phone)
+             WHERE id = $4
+             RETURNING id, name, email, phone, role, membership, tradingview_username`,
+            [name, email, phone, req.user.id]
+        );
+
+        res.json({ message: "Perfil actualizado correctamente", user: result.rows[0] });
+    } catch (error) {
+        console.error("UPDATE MY PROFILE ERROR:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// ==========================
+// CHANGE MY PASSWORD — NUEVO, cualquier usuario logueado
+// ==========================
+const changeMyPassword = async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "currentPassword y newPassword son obligatorios" });
+    }
+    if (newPassword.length < 6) {
+        return res.status(400).json({ message: "La nueva contraseña debe tener al menos 6 caracteres" });
+    }
+
+    try {
+        const userRow = await pool.query("SELECT password FROM users WHERE id = $1", [req.user.id]);
+        if (userRow.rows.length === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        const validPassword = await bcrypt.compare(currentPassword, userRow.rows[0].password);
+        if (!validPassword) {
+            return res.status(400).json({ message: "La contraseña actual no es correcta" });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await pool.query("UPDATE users SET password = $1 WHERE id = $2", [hashedPassword, req.user.id]);
+
+        res.json({ message: "Contraseña actualizada correctamente" });
+    } catch (error) {
+        console.error("CHANGE MY PASSWORD ERROR:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// ==========================
+// ADMIN: RESET PASSWORD DE UN ALUMNO (genera una temporal y la devuelve)
+// ==========================
+const adminResetPassword = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const tempPassword = Math.random().toString(36).slice(-8);
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+        const result = await pool.query(
+            "UPDATE users SET password = $1 WHERE id = $2 RETURNING id, name, email",
+            [hashedPassword, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        res.json({
+            message: "Contraseña temporal generada correctamente",
+            tempPassword,
+            user: result.rows[0]
+        });
+    } catch (error) {
+        console.error("ADMIN RESET PASSWORD ERROR:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+module.exports = {
+    register,
+    login,
+    getAllUsers,
+    deleteUser,
+    updateMembership,
+    updateUserRole,
+    updateTradingViewUsername,
+    updateMyProfile,
+    changeMyPassword,
+    adminResetPassword
+};

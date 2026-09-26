@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { login, register, getAllUsers, deleteUser, updateMembership, updateUserRole, updateTradingViewUsername } = require('../controllers/auth.controller');
+const { login, register, getAllUsers, deleteUser, updateMembership, updateUserRole, updateTradingViewUsername, updateMyProfile, changeMyPassword, adminResetPassword } = require('../controllers/auth.controller');
 const { verifyToken, verifyAdmin } = require('../middleware/auth.middleware');
 
 // ==========================
@@ -37,6 +37,21 @@ router.put('/users/:id/role', verifyToken, verifyAdmin, updateUserRole);
 // MI USUARIO DE TRADINGVIEW (cualquier usuario logueado) — NUEVO
 // ==========================
 router.put('/tradingview', verifyToken, updateTradingViewUsername);
+
+// ==========================
+// MI PERFIL (nombre, correo, telefono) — cualquier usuario logueado — NUEVO
+// ==========================
+router.put('/me', verifyToken, updateMyProfile);
+
+// ==========================
+// CAMBIAR MI CONTRASEÑA (logueado) — NUEVO
+// ==========================
+router.put('/me/password', verifyToken, changeMyPassword);
+
+// ==========================
+// ADMIN: RESETEAR CONTRASEÑA DE UN ALUMNO — NUEVO
+// ==========================
+router.put('/users/:id/reset-password', verifyToken, verifyAdmin, adminResetPassword);
 
 // ==========================
 // PROTECTED ROUTE
